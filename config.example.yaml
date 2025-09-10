@@ -1,0 +1,43 @@
+# Example configuration for TinTown Impact Bridge
+# Copy to config.yaml and update with your device information
+
+# AMG Commander Timer Configuration
+amg:
+  adapter: "hci0"  # Bluetooth adapter (hci0 internal, hci1 USB dongle)
+  mac: "60:09:C3:1F:DC:1A"  # Replace with your AMG Commander MAC
+  start_uuid: "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # AMG notification UUID
+
+# BT50 Sensor Configuration  
+sensors:
+  - sensor: "Sensor_12E3"  # Sensor identifier
+    plate: "P1"           # Plate identifier
+    mac: "F8:FE:92:31:12:E3"  # Replace with your BT50 MAC
+    notify_uuid: "0000ffe4-0000-1000-8000-00805f9a34fb"  # BT50 notification UUID
+
+# Impact Detection Parameters
+detector:
+  # Raw count thresholds (post-calibration)
+  impact_threshold: 150  # Raw counts - impact detection threshold
+  dead_time_ms: 100     # Minimum time between impacts (ms)
+  
+  # Baseline calibration values (update from calibration results)
+  baseline_x: 2089      # Raw count baseline for X-axis (gravity-oriented)
+  baseline_y: 0         # Raw count baseline for Y-axis  
+  baseline_z: 0         # Raw count baseline for Z-axis
+
+# Logging Configuration
+logging:
+  dir: "./logs"
+  level: "INFO"
+  formats: ["csv", "ndjson"]  # Output formats
+  rotation: true
+  verbose_whitelist:
+    - "bt50_buffer_samples"
+    - "amg_shots"
+    - "impact_events"
+
+# Development/Debug Settings
+debug:
+  enable_amg_raw: false     # Log raw AMG frames
+  enable_bt50_raw: false    # Log raw BT50 data
+  simulate_devices: false   # Use simulated devices for testing
