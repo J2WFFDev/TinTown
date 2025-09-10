@@ -5,19 +5,14 @@
 echo "🚀 TinTown Bridge Test Sequence Starting..."
 echo "========================================"
 
-# Step 1: Update code from GitHub
+# Step 1: Kill any existing bridge processes and reset BLE
 echo ""
-echo "📥 Step 1: Updating from GitHub..."
-git pull origin main
-
-# Step 2: Kill any existing bridge processes and reset BLE
-echo ""
-echo "🔄 Step 2: Cleaning up existing processes..."
+echo "🔄 Step 1: Cleaning up existing processes..."
 python3 tools/reset_ble.py
 
-# Step 3: Basic import test
+# Step 2: Basic import test
 echo ""
-echo "🧪 Step 3: Testing module imports..."
+echo "🧪 Step 2: Testing module imports..."
 python3 -c "
 import sys
 sys.path.insert(0, 'src')
@@ -30,21 +25,21 @@ except Exception as e:
     exit(1)
 "
 
-# Step 4: Device detection
+# Step 3: Device detection
 echo ""
-echo "📡 Step 4: Scanning for BLE devices..."
+echo "📡 Step 3: Scanning for BLE devices..."
 timeout 10 python3 tools/ble_scan.py
 
-# Step 5: Critical calibration (establish baseline)
+# Step 4: Critical calibration (establish baseline)
 echo ""
-echo "🎯 Step 5: CRITICAL - Running calibration to establish baseline..."
+echo "🎯 Step 4: CRITICAL - Running calibration to establish baseline..."
 echo "This will take about 30 seconds and establish fresh baseline values."
 read -p "Press Enter to start calibration (make sure BT50 is stationary)..."
 python3 tools/calibrate_bt50_with_logging.py
 
-# Step 6: Check calibration results
+# Step 5: Check calibration results
 echo ""
-echo "📊 Step 6: Checking calibration results..."
+echo "📊 Step 5: Checking calibration results..."
 if [ -d "logs/calibration" ]; then
     latest_cal=$(ls -t logs/calibration/bt50_calibration_*.json | head -1)
     if [ -f "$latest_cal" ]; then
@@ -65,9 +60,9 @@ except Exception as e:
     fi
 fi
 
-# Step 7: Bridge test
+# Step 6: Bridge test
 echo ""
-echo "🌉 Step 7: Starting Fixed Bridge (main test)..."
+echo "🌉 Step 6: Starting Fixed Bridge (main test)..."
 echo "This will:"
 echo "  - Connect to AMG Timer (60:09:C3:1F:DC:1A)"
 echo "  - Connect to BT50 Sensor (F8:FE:92:31:12:E3)"
