@@ -430,8 +430,6 @@ class FixedBridge:
                 self.previous_shot_time = None
                 # Initialize shot counter for new string
                 self.shot_counter = 0
-                
-                self.log_event("Status", "Timer", "DC:1A", "Bay 1", f"Start Beep for String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}", self.start_beep_time)
             
             # Handle shots with split timing (frame type 0x03)
             elif frame_header == 0x01 and frame_type == 0x03 and len(data) >= 14:
@@ -468,8 +466,6 @@ class FixedBridge:
                 
                 # Log with actual timer split values
                 shot_details = f"Shot #{shot_number}, timer split: {timer_split_seconds:.2f}s ({timer_split_ms:.0f}ms)"
-                
-                self.log_event("String", "Timer", "DC:1A", "Bay 1", shot_details, actual_shot_timestamp)
                 
                 # Add ACTUAL shot timestamp (not reception time) to timing calibrator
                 if self.timing_calibrator:
@@ -536,7 +532,6 @@ class FixedBridge:
                     stop_details += f", total time: {total_ms:.0f}ms"
                 
                 # Use reception timestamp for STOP since no timer data available
-                self.log_event("Status", "Timer", "DC:1A", "Bay 1", stop_details, reception_timestamp)
                 
                 # Reset for next string
                 self.start_beep_time = None
