@@ -460,8 +460,7 @@ class FixedBridge:
                 if hasattr(self, 'previous_shot_time') and self.previous_shot_time:
                     shot_split_seconds = (actual_shot_timestamp - self.previous_shot_time).total_seconds()
                 
-                self.logger.info(f"🎯 String {string_number}, Shot #{shot_number} recorded at {actual_shot_timestamp.strftime('%H:%M:%S.%f')[:-3]} {{{timer_split_seconds:.2f}s(from start), {shot_split_seconds:.2f}s(from previous shot; split)}}")
-                self.logger.info(f"📊 AMG Timing - Time: {timer_split_seconds:.2f}s, Split: {split_seconds:.2f}s, First: {first_seconds:.2f}s")
+                self.logger.info(f"🎯 String {string_number}, Shot #{shot_number} - Time: {timer_split_seconds:.2f}s, Split: {split_seconds:.2f}s, First: {first_seconds:.2f}s")
                 
                 # Store for next split calculation
                 self.previous_shot_time = actual_shot_timestamp
