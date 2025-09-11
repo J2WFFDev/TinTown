@@ -191,17 +191,11 @@ class FixedBridge:
         console_formatter = MillisecondFormatter('[%(asctime)s] %(levelname)s: %(message)s')
         file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         
-        # Setup root logger
+        # Setup root logger for debug level (console already configured)
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.DEBUG)
         
-        # Console handler for INFO+
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(console_formatter)
-        root_logger.addHandler(console_handler)
-        
-        # File handler for ALL debug info
+        # File handler for ALL debug info (don't add another console handler)
         file_handler = logging.FileHandler(debug_file)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_formatter)
@@ -419,11 +413,11 @@ class FixedBridge:
                     split_cs = (data[6] << 8) | data[7]  # Bytes 6-7: split time (centiseconds) 
                     first_cs = (data[8] << 8) | data[9]  # Bytes 8-9: first shot time (centiseconds)
                     
-                    self.logger.info(f"📝 Status: Timer DC:1A - Start Beep for String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}")
+                    self.logger.info(f"📝 Status: Timer DC:1A - -------Start Beep ------- String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}")
                     self.logger.info(f"📊 AMG Timing - Time: {time_cs/100:.2f}s, Split: {split_cs/100:.2f}s, First: {first_cs/100:.2f}s")
                 else:
                     self.current_string_number = 1
-                    self.logger.info(f"📝 Status: Timer DC:1A - Start Beep for String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}")
+                    self.logger.info(f"📝 Status: Timer DC:1A - -------Start Beep ------- String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}")
                 
                 # Reset counters for new string
                 self.impact_counter = 0
@@ -521,9 +515,9 @@ class FixedBridge:
                 total_info = ""
                 if self.start_beep_time:
                     total_ms = (reception_timestamp - self.start_beep_time).total_seconds() * 1000
-                    total_info = f" (total: {total_ms:.0f}ms)"
+                    total_info = f" (total: {timer_seconds:.2f}s)"
                 
-                self.logger.info(f"📝 Status: Timer DC:1A - String #{string_number} Stop{total_info}")
+                self.logger.info(f"📝 Status: Timer DC:1A - Stop Beep for String #{string_number} at {reception_timestamp.strftime('%H:%M:%S.%f')[:-3]}{total_info}")
                 if len(data) >= 14:
                     self.logger.info(f"📊 AMG Final - Time: {timer_seconds:.2f}s, Split: {split_seconds:.2f}s, First: {first_seconds:.2f}s")
                 
@@ -616,21 +610,31 @@ class FixedBridge:
                     )
                     
                     if impact_event:
-                        # Calculate timing from start and from shot
+                        # Calculate timing using calibrated projections (not raw timestamps)
                         time_from_start = 0.0
                         time_from_shot = 0.0
                         impact_number = getattr(self, 'impact_counter', 0) + 1
                         setattr(self, 'impact_counter', impact_number)
                         
-                        if self.start_beep_time:
-                            time_from_start = (impact_event.onset_timestamp - self.start_beep_time).total_seconds()
-                        
                         if hasattr(self, 'last_projection') and self.last_projection:
-                            time_from_shot = (impact_event.onset_timestamp - self.last_projection['shot_time']).total_seconds()
+                            # Use calibrated timing: actual shot time + statistical offset vs actual impact
+                            projected_time = self.last_projection['projected_time']
+                            actual_shot_time = self.last_projection['shot_time']
+                            
+                            # Time from shot using statistical calibration (should be close to ~83ms)
+                            time_from_shot = (impact_event.onset_timestamp - actual_shot_time).total_seconds()
+                            
+                            # Time from string start using calibrated shot timestamp
+                            if self.start_beep_time:
+                                time_from_start = (actual_shot_time - self.start_beep_time).total_seconds()
+                            
                             shot_number = self.last_projection['shot_number']
                             confidence_range = self.last_projection['metadata']['confidence_intervals']['68_percent']
                             uncertainty = self.last_projection['metadata']['uncertainty_ms']
                         else:
+                            # Fallback to raw timing if no projection available
+                            if self.start_beep_time:
+                                time_from_start = (impact_event.onset_timestamp - self.start_beep_time).total_seconds()
                             shot_number = "?"
                             confidence_range = "N/A"
                             uncertainty = 94
@@ -638,8 +642,8 @@ class FixedBridge:
                         # Use extracted string number or default to 1
                         current_string = getattr(self, 'current_string_number', 1)
                         
-                        # Consolidated impact logging
-                        self.logger.info(f"💥String {current_string}, Impact #{impact_number}: {time_from_start:.2f}s(from start), {time_from_shot:.3f}s(from shot)")
+                        # Consolidated impact logging  
+                        self.logger.info(f"💥String {current_string}, Impact #{impact_number}: Time {time_from_start:.2f}s, Shot->Impact: {time_from_shot:.3f}s, Peak {impact_event.peak_magnitude:.0f}g")
                         
                         # Extract additional details from impact event
                         onset_to_peak_ms = getattr(impact_event, '_onset_to_peak_ms', 0)
@@ -647,7 +651,7 @@ class FixedBridge:
                         sample_count = getattr(impact_event, '_sample_count', 0)
                         confidence = getattr(impact_event, '_confidence', impact_event.confidence)
                         
-                        self.logger.info(f"📊String {current_string}, Impact #{impact_number}: {{Details Onset: {impact_event.onset_timestamp.strftime('%H:%M:%S.%f')[:-3]} ({impact_event.onset_magnitude:.1f}g), Peak: {impact_event.peak_timestamp.strftime('%H:%M:%S.%f')[:-3]} ({impact_event.peak_magnitude:.1f}g), Onset→Peak: {onset_to_peak_ms:.1f}ms, Duration: {duration_ms:.1f}ms, Samples: {sample_count}, Confidence: {confidence:.2f}, Offset (±{uncertainty:.0f}ms, 68% CI: {confidence_range})}}")
+                        self.logger.debug(f"📊String {current_string}, Impact #{impact_number}: {{Details Onset: {impact_event.onset_timestamp.strftime('%H:%M:%S.%f')[:-3]} ({impact_event.onset_magnitude:.1f}g), Peak: {impact_event.peak_timestamp.strftime('%H:%M:%S.%f')[:-3]} ({impact_event.peak_magnitude:.1f}g), Onset→Peak: {onset_to_peak_ms:.1f}ms, Duration: {duration_ms:.1f}ms, Samples: {sample_count}, Confidence: {confidence:.2f}, Offset (±{uncertainty:.0f}ms, 68% CI: {confidence_range})}}")
                         
                         # Log event to structured logs
                         self.log_event("Impact", "Sensor", "12:E3", "Plate 1", 

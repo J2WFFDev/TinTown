@@ -1,0 +1,10 @@
+﻿SHOT DETECTION SUMMARY
+==================================================
+Total shots detected: 0
+Time span: s to s  
+Average duration: 0 samples
+Average deviation: 0 counts
+
+Individual shots:
+
+Detailed shot data:

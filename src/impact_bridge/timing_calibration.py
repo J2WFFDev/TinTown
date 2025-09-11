@@ -116,7 +116,7 @@ class RealTimeTimingCalibrator:
         shot = ShotEvent(timestamp=timestamp, shot_number=shot_number, device_id=device_id)
         self.pending_shots.append(shot)
         
-        logger.info(f"Shot #{shot_number} recorded at {timestamp.strftime('%H:%M:%S.%f')[:-3]}")
+        logger.debug(f"Shot #{shot_number} recorded at {timestamp.strftime('%H:%M:%S.%f')[:-3]}")
         
         # Cleanup old shots outside correlation window
         cutoff_time = timestamp - timedelta(milliseconds=self.calibration.correlation_window_ms)
@@ -195,7 +195,7 @@ class RealTimeTimingCalibrator:
                     used_impacts.add(best_index)
                     self.correlated_pairs.append(pair)
                     
-                    logger.info(f"✅ Correlated Shot #{shot.shot_number} → Impact {best_impact.magnitude:.1f}g "
+                    logger.debug(f"✅ Correlated Shot #{shot.shot_number} → Impact {best_impact.magnitude:.1f}g "
                                f"(delay: {actual_delay}ms, confidence: {confidence:.2f})")
                     
                     # Update learning system
