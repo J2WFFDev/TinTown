@@ -1,0 +1,28 @@
+{
+  "statistics": {
+    "magnitude_stats": {
+      "mean": 173.65,
+      "max": 194.9,
+      "min": 157.6
+    },
+    "delay_stats": {
+      "median_ms": 526,
+      "mean_ms": 526.0,
+      "max_ms": 906.0,
+      "min_ms": 99.0,
+      "stdev_ms": 331.3
+    },
+    "correlation_rate_percent": 100.0,
+    "pairs_correlated": 6,
+    "shots_analyzed": 6,
+    "impacts_analyzed": 1288
+  },
+  "timing_calibration": {
+    "minimum_magnitude": 173.65,
+    "analysis_date": "2025-09-11T08:19:33",
+    "sample_count": 6,
+    "expected_delay_ms": 526,
+    "correlation_window_ms": 1520.0,
+    "delay_tolerance_ms": 663
+  }
+}

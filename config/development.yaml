@@ -1,0 +1,71 @@
+# TinTown Development Configuration
+# Enhanced logging and analysis features for timing calibration development
+
+# Development Mode Settings
+development_mode: true
+
+# Enhanced Logging Configuration
+enhanced_logging:
+  enabled: true
+  sample_logging: true          # Log every BT50 sample with timestamps and raw values
+  impact_analysis: true         # Detailed impact event analysis and progression
+  timing_correlation: true      # Enhanced timing correlation logging
+  waveform_capture: true        # Capture complete impact waveforms for analysis
+  
+  # Log Levels for Development
+  bridge_debug: DEBUG           # Main bridge debug level
+  timing_debug: INFO            # Timing calibration debug level  
+  impact_debug: INFO            # Enhanced impact detection debug level
+  
+  # Sample Data Options
+  log_all_samples: false        # Log every sample (very verbose, use sparingly)
+  log_impact_samples: true      # Log samples during impact events only
+  impact_window_samples: 50     # Number of samples to log around impacts
+  
+# Analysis Tools Configuration  
+analysis_tools:
+  enabled: true
+  strip_chart_generator: true   # Enable detailed strip chart analysis
+  correlation_analyzer: true    # Multi-shot timing correlation analysis
+  waveform_analyzer: true       # Impact waveform shape analysis
+  export_formats: ["csv", "json", "markdown"]  # Available export formats
+
+# Enhanced Impact Detection Settings
+enhanced_impact:
+  enabled: true
+  onset_threshold: 30.0         # Onset detection threshold (g)
+  peak_threshold: 150.0         # Peak detection threshold (g)  
+  lookback_samples: 10          # Samples to analyze for onset
+  confidence_logging: true      # Log confidence scores and analysis
+  
+# Timing Calibration Development
+timing_calibration:
+  enhanced_mode: true           # Use enhanced timing correlation
+  learning_rate: 0.1            # Adaptive learning rate
+  validation_logging: true      # Log correlation validation details
+  baseline_analysis: true       # Analyze timing baselines and drift
+  
+# Performance Monitoring
+performance_monitoring:
+  enabled: true
+  sample_rate_tracking: true    # Monitor BT50 sample rates
+  processing_time_tracking: true # Track processing delays
+  memory_usage_tracking: false  # Monitor memory usage (optional)
+  
+# Development Utilities
+dev_utilities:
+  auto_backup_logs: true        # Automatically backup important log sessions
+  test_mode_markers: true       # Add markers in logs for test sessions  
+  timing_validation: true       # Validate timing order and consistency
+  data_export: true             # Enable data export for analysis
+  
+# Production Overrides (when development_mode: false)
+production_overrides:
+  enhanced_logging:
+    sample_logging: false       # Disable verbose sample logging
+    log_all_samples: false      # Never log all samples in production
+    bridge_debug: INFO          # Reduce debug verbosity
+  performance_monitoring:
+    enabled: false              # Disable performance tracking overhead
+  analysis_tools:
+    enabled: false              # Disable analysis tools in production
