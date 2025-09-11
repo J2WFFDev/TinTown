@@ -536,7 +536,7 @@ class FixedBridge:
                 if len(data) >= 14:
                     self.logger.info(f"📊 AMG Final - Time: {timer_seconds:.2f}s, Split: {split_seconds:.2f}s, First: {first_seconds:.2f}s")
                 
-                stop_details = f"String #{current_string} Stop"
+                stop_details = f"String #{string_number} Stop"
                 if self.start_beep_time:
                     stop_details += f", total time: {total_ms:.0f}ms"
                 
