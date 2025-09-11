@@ -398,15 +398,11 @@ class FixedBridge:
             frame_type_names = {0x03: "SHOT", 0x05: "START", 0x08: "STOP"}
             frame_name = frame_type_names.get(frame_type, f"UNKNOWN({frame_type:02x})")
             
-            # Log raw hex data in tabular format for pattern analysis
+            # Log raw hex data to debug log only (not console)
             if len(data) >= 14:
                 hex_row = ' '.join(f'{b:02x}' for b in data[:14])
                 timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
-                self.logger.info(f"AMG_HEX [{timestamp}] {frame_name:5s}: {hex_row}")
-                # Also log byte positions for reference (only occasionally)
-                if not hasattr(self, '_hex_header_logged') or not self._hex_header_logged:
-                    self.logger.info(f"AMG_HEX [HEADER  ] BYTE#:  0  1  2  3  4  5  6  7  8  9 10 11 12 13")
-                    self._hex_header_logged = True
+                self.logger.debug(f"AMG_HEX [{timestamp}] {frame_name:5s}: {hex_row}")
             
             self.logger.debug(f"AMG frame type: {frame_header:02x}{frame_type:02x} = {frame_name}")
             
