@@ -455,6 +455,13 @@ class FixedBridge:
             
         except Exception as e:
             self.logger.error(f"BT50 sensor connection failed: {e}")
+        
+        # Final ready status - only if both devices connected successfully
+        if (self.amg_client and self.amg_client.is_connected and 
+            self.bt50_client and self.bt50_client.is_connected and 
+            self.calibration_complete):
+            self.logger.info("🎯 Bridge ready for String")
+            self.log_event("Status", "Bridge", "MCU1", "Bay 1", "Bridge ready for String - All systems operational")
 
     async def cleanup(self):
         """Proper cleanup of BLE connections"""
