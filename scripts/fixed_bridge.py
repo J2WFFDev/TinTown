@@ -414,7 +414,6 @@ class FixedBridge:
                     first_cs = (data[8] << 8) | data[9]  # Bytes 8-9: first shot time (centiseconds)
                     
                     self.logger.info(f"📝 Status: Timer DC:1A - -------Start Beep ------- String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}")
-                    self.logger.info(f"📊 AMG Timing - Time: {time_cs/100:.2f}s, Split: {split_cs/100:.2f}s, First: {first_cs/100:.2f}s")
                 else:
                     self.current_string_number = 1
                     self.logger.info(f"📝 Status: Timer DC:1A - -------Start Beep ------- String #{self.current_string_number} at {self.start_beep_time.strftime('%H:%M:%S.%f')[:-3]}")
@@ -424,6 +423,10 @@ class FixedBridge:
                 self.previous_shot_time = None
                 # Initialize shot counter for new string
                 self.shot_counter = 0
+                # Reset impact peak tracking for new string
+                self.recent_impact_peaks = []
+                # Reset shot split times tracking for new string
+                self.shot_split_times = []
             
             # Handle shots with split timing (frame type 0x03)
             elif frame_header == 0x01 and frame_type == 0x03 and len(data) >= 14:
@@ -451,8 +454,12 @@ class FixedBridge:
                 shot_split_seconds = 0.0
                 if hasattr(self, 'previous_shot_time') and self.previous_shot_time:
                     shot_split_seconds = (actual_shot_timestamp - self.previous_shot_time).total_seconds()
+                    # Track split times for average calculation (exclude shot #1's 0.0 split)
+                    if not hasattr(self, 'shot_split_times'):
+                        self.shot_split_times = []
+                    self.shot_split_times.append(shot_split_seconds)
                 
-                self.logger.info(f"🎯 String {string_number}, Shot #{shot_number} - Time: {timer_split_seconds:.2f}s, Split: {split_seconds:.2f}s, First: {first_seconds:.2f}s")
+                self.logger.info(f"🔫 String {string_number}, Shot #{shot_number} - Time {timer_split_seconds:.2f}s, Split {shot_split_seconds:.2f}s, First {first_seconds:.2f}s")
                 
                 # Store for next split calculation
                 self.previous_shot_time = actual_shot_timestamp
@@ -519,7 +526,21 @@ class FixedBridge:
                 
                 self.logger.info(f"📝 Status: Timer DC:1A - Stop Beep for String #{string_number} at {reception_timestamp.strftime('%H:%M:%S.%f')[:-3]}{total_info}")
                 if len(data) >= 14:
-                    self.logger.info(f"📊 AMG Final - Time: {timer_seconds:.2f}s, Split: {split_seconds:.2f}s, First: {first_seconds:.2f}s")
+                    # Calculate impact statistics
+                    impact_count = getattr(self, 'impact_counter', 0)
+                    shot_count = getattr(self, 'shot_counter', 0)
+                    
+                    # Calculate average peak magnitude from recent impacts
+                    avg_peak = 0
+                    if hasattr(self, 'recent_impact_peaks') and self.recent_impact_peaks:
+                        avg_peak = int(sum(self.recent_impact_peaks) / len(self.recent_impact_peaks))
+                    
+                    # Calculate average split time from shot deltas
+                    avg_split = 0.0
+                    if hasattr(self, 'shot_split_times') and self.shot_split_times:
+                        avg_split = sum(self.shot_split_times) / len(self.shot_split_times)
+                    
+                    self.logger.info(f"📊 String {string_number} Final - Time {timer_seconds:.2f}s, Avg Split {avg_split:.2f}s, First {first_seconds:.2f}s, Shots {shot_count}, Impacts {impact_count}, Avg Peak {avg_peak}g")
                 
                 stop_details = f"String #{string_number} Stop"
                 if self.start_beep_time:
@@ -532,6 +553,8 @@ class FixedBridge:
                 self.impact_counter = 0
                 self.shot_counter = 0
                 self.previous_shot_time = None
+                self.recent_impact_peaks = []
+                self.shot_split_times = []
             else:
                 self.logger.debug(f"AMG {frame_name} frame (not logged to console)")
         else:
@@ -601,6 +624,12 @@ class FixedBridge:
                 
                 # Enhanced impact detection with onset timing
                 if self.enhanced_impact_detector:
+                    # Debug: Log every 1000th sample to verify detector is active
+                    if not hasattr(self, '_debug_sample_count'):
+                        self._debug_sample_count = 0
+                    self._debug_sample_count += 1
+                    if self._debug_sample_count % 1000 == 0:
+                        self.logger.debug(f"Enhanced impact detector active, processed {self._debug_sample_count} samples")
                     timestamp = datetime.now()
                     impact_event = self.enhanced_impact_detector.process_sample(
                         timestamp=timestamp,
@@ -610,98 +639,40 @@ class FixedBridge:
                     )
                     
                     if impact_event:
-                        # Calculate timing using calibrated projections (not raw timestamps)
-                        time_from_start = 0.0
-                        time_from_shot = 0.0
+                        # Simple impact logging - calculate basic timing
                         impact_number = getattr(self, 'impact_counter', 0) + 1
                         setattr(self, 'impact_counter', impact_number)
                         
-                        if hasattr(self, 'last_projection') and self.last_projection:
-                            # Use calibrated timing: actual shot time + statistical offset vs actual impact
-                            projected_time = self.last_projection['projected_time']
-                            actual_shot_time = self.last_projection['shot_time']
-                            
-                            # Time from shot using statistical calibration (should be close to ~83ms)
-                            time_from_shot = (impact_event.onset_timestamp - actual_shot_time).total_seconds()
-                            
-                            # Time from string start using calibrated shot timestamp
-                            if self.start_beep_time:
-                                time_from_start = (actual_shot_time - self.start_beep_time).total_seconds()
-                            
-                            shot_number = self.last_projection['shot_number']
-                            confidence_range = self.last_projection['metadata']['confidence_intervals']['68_percent']
-                            uncertainty = self.last_projection['metadata']['uncertainty_ms']
+                        # Calculate time from string start
+                        if self.start_beep_time:
+                            time_from_start = (impact_event.onset_timestamp - self.start_beep_time).total_seconds()
                         else:
-                            # Fallback to raw timing if no projection available
-                            if self.start_beep_time:
-                                time_from_start = (impact_event.onset_timestamp - self.start_beep_time).total_seconds()
-                            shot_number = "?"
-                            confidence_range = "N/A"
-                            uncertainty = 94
+                            time_from_start = 0.0
                         
-                        # Use extracted string number or default to 1
+                        # Calculate time from shot if projection available
+                        time_from_shot = 0.0
+                        if hasattr(self, 'last_projection') and self.last_projection:
+                            actual_shot_time = self.last_projection['shot_time']
+                            time_from_shot = (impact_event.onset_timestamp - actual_shot_time).total_seconds()
+                        
+                        # Get current string number
                         current_string = getattr(self, 'current_string_number', 1)
                         
-                        # Consolidated impact logging  
-                        self.logger.info(f"💥String {current_string}, Impact #{impact_number}: Time {time_from_start:.2f}s, Shot->Impact: {time_from_shot:.3f}s, Peak {impact_event.peak_magnitude:.0f}g")
+                        # Console impact logging  
+                        self.logger.info(f"💥 String {current_string}, Impact #{impact_number} - Time {time_from_start:.2f}s, Shot->Impact {time_from_shot:.3f}s, Peak {impact_event.peak_magnitude:.0f}g")
                         
-                        # Extract additional details from impact event
-                        onset_to_peak_ms = getattr(impact_event, '_onset_to_peak_ms', 0)
-                        duration_ms = getattr(impact_event, '_duration_ms', impact_event.duration_ms)
-                        sample_count = getattr(impact_event, '_sample_count', 0)
-                        confidence = getattr(impact_event, '_confidence', impact_event.confidence)
+                        # Track impact peak magnitudes for final statistics
+                        if not hasattr(self, 'recent_impact_peaks'):
+                            self.recent_impact_peaks = []
+                        self.recent_impact_peaks.append(impact_event.peak_magnitude)
                         
-                        self.logger.debug(f"📊String {current_string}, Impact #{impact_number}: {{Details Onset: {impact_event.onset_timestamp.strftime('%H:%M:%S.%f')[:-3]} ({impact_event.onset_magnitude:.1f}g), Peak: {impact_event.peak_timestamp.strftime('%H:%M:%S.%f')[:-3]} ({impact_event.peak_magnitude:.1f}g), Onset→Peak: {onset_to_peak_ms:.1f}ms, Duration: {duration_ms:.1f}ms, Samples: {sample_count}, Confidence: {confidence:.2f}, Offset (±{uncertainty:.0f}ms, 68% CI: {confidence_range})}}")
-                        
-                        # Log event to structured logs
+                        # Log structured event data
                         self.log_event("Impact", "Sensor", "12:E3", "Plate 1", 
                                      f"Enhanced impact: onset {impact_event.onset_magnitude:.1f}g → peak {impact_event.peak_magnitude:.1f}g, "
-                                     f"duration {duration_ms:.1f}ms, confidence {confidence:.2f}")
-                        
-                        # Add ONSET timestamp to timing calibrator (key improvement!)
-                        if self.timing_calibrator:
-                            self.timing_calibrator.add_impact_event(
-                                timestamp=impact_event.onset_timestamp,  # Use onset, not peak!
-                                magnitude=impact_event.peak_magnitude,
-                                device_id="12:E3",
-                                raw_value=vx_raw
-                            )
-                            self.logger.debug(f"Impact onset {impact_event.onset_magnitude:.1f}g added to timing calibrator")
-                        
-                        # Statistical timing analysis for this impact
-                        if STATISTICAL_TIMING_AVAILABLE and statistical_calibrator:
-                            # Check if we have recent shots to correlate with
-                            recent_shots = []
-                            if hasattr(self, 'timing_calibrator') and self.timing_calibrator:
-                                recent_shots = getattr(self.timing_calibrator, 'shot_events', [])
-                                # Get shots from last 5 seconds
-                                cutoff_time = impact_event.onset_timestamp - timedelta(seconds=5)
-                                recent_shots = [shot for shot in recent_shots if shot['timestamp'] > cutoff_time]
-                            
-                            # Analyze timing accuracy for most recent shot if available
-                            if recent_shots:
-                                latest_shot = max(recent_shots, key=lambda x: x['timestamp'])
-                                timing_analysis = statistical_calibrator.analyze_timing_accuracy(
-                                    amg_time=latest_shot['timestamp'],
-                                    actual_impact_time=impact_event.onset_timestamp
-                                )
-                                
-                                # Log statistical analysis
-                                confidence_level = timing_analysis['confidence_level_achieved']
-                                prediction_error = timing_analysis['prediction_error_ms']
-                                actual_delay = timing_analysis['actual_delay_ms']
-                                
-                                # Timing analysis will be included in the consolidated impact log above
-                                
-                                # Log detailed analysis to debug
-                                self.logger.debug(f"Statistical timing analysis: {json.dumps(timing_analysis, indent=2)}")
-                                
-                                # Add analysis event to logs
-                                analysis_details = (f"Actual delay: {actual_delay:.0f}ms, "
-                                                  f"prediction error: {prediction_error:+.0f}ms, "
-                                                  f"confidence: {confidence_level}")
-                                self.log_event("Analysis", "Statistical", "Timing", "Correlation", 
-                                             analysis_details, impact_event.onset_timestamp)
+                                     f"duration {impact_event.duration_ms:.1f}ms, confidence {impact_event.confidence:.2f}")
+
+                
+                
                 
                 # Fallback: Legacy impact detection (if enhanced detection not available)
                 elif magnitude_corrected > IMPACT_THRESHOLD:
